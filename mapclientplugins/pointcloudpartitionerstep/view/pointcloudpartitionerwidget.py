@@ -12,6 +12,7 @@ from PySide6 import QtWidgets, QtCore
 from cmlibs.utils.zinc.finiteelement import get_identifiers
 
 from cmlibs.utils.zinc.general import ChangeManager
+from cmlibs.utils.zinc.mesh import find_connected_mesh_elements_0d
 from cmlibs.utils.zinc.region import copy_nodeset
 from cmlibs.utils.zinc.scene import scene_get_or_create_selection_group
 from cmlibs.widgets.handlers.scenemanipulation import SceneManipulation
@@ -531,52 +532,23 @@ class PointCloudPartitionerWidget(QtWidgets.QWidget):
     def _select_connected_mesh_elements(self, mesh_selection_group):
         coordinate_field = self._model.get_mesh_coordinates()
         field_module = coordinate_field.getFieldmodule()
+
+        if len(self._connected_sets) == 0:
+            mesh = field_module.findMeshByDimension(2)
+            element_count = mesh.getSize()
+            self._progress_dialog = self._prepare_progress_dialog("Finding connected surfaces", "Cancel", element_count)
+            connected_sets = find_connected_mesh_elements_0d(coordinate_field, 2, True, progress_callback=self._connected_sets_progress)
+            self._progress_dialog.setValue(element_count)
+            if connected_sets is None:
+                return
+
+            self._connected_sets = connected_sets
+
         initial_element = mesh_selection_group.createElementiterator().next()
         initial_element_identifier = initial_element.getIdentifier()
-        if len(self._connected_sets):
-            selected_elements = [_set for _set in self._connected_sets if initial_element_identifier in _set]
-            if selected_elements:
-                _select_elements(field_module, mesh_selection_group, selected_elements[0])
-            return
-
-        mesh = mesh_selection_group.getMasterMesh()
-        element_iterator = mesh.createElementiterator()
-        element = element_iterator.next()
-        element_nodes = []
-        element_identifiers = []
-        while element.isValid():
-            element_identifiers.append(element.getIdentifier())
-            eft = element.getElementfieldtemplate(coordinate_field, -1)
-            local_node_count = eft.getNumberOfLocalNodes()
-            node_identifiers = []
-            for index in range(local_node_count):
-                node = element.getNode(eft, index + 1)
-                node_identifiers.append(node.getIdentifier())
-
-            element_nodes.append(node_identifiers)
-            element = element_iterator.next()
-
-        try:
-            initial_element_index = element_identifiers.index(initial_element_identifier)
-        except ValueError:
-            return
-
-        self._progress_dialog = self._prepare_progress_dialog("Finding connected surfaces", "Cancel", len(element_nodes))
-        connected_sets = _find_connected(initial_element_index, element_nodes, self._connected_sets_progress)
-        self._progress_dialog.setValue(len(element_nodes))
-        if connected_sets is None:
-            return
-
-        el_ids = []
-        for connected_set in connected_sets:
-            ids = []
-            for index in connected_set:
-                ids.append(element_identifiers[index])
-
-            el_ids.append(ids)
-
-        self._connected_sets = el_ids
-        _select_elements(field_module, mesh_selection_group, el_ids[0])
+        selected_elements = [_set for _set in self._connected_sets if initial_element_identifier in _set]
+        if selected_elements:
+            _select_elements(field_module, mesh_selection_group, selected_elements[0])
 
     def _get_node_selection_group(self):
         scene = self._ui.widgetZinc.get_zinc_sceneviewer().getScene()
