@@ -3,7 +3,7 @@
 ################################################################################
 ## Form generated from reading UI file 'pointcloudpartitionerwidget.ui'
 ##
-## Created by: Qt User Interface Compiler version 6.5.1
+## Created by: Qt User Interface Compiler version 6.5.2
 ##
 ## WARNING! All changes made in this file will be lost when recompiling UI file!
 ################################################################################
@@ -27,7 +27,7 @@ class Ui_PointCloudPartitionerWidget(object):
     def setupUi(self, PointCloudPartitionerWidget):
         if not PointCloudPartitionerWidget.objectName():
             PointCloudPartitionerWidget.setObjectName(u"PointCloudPartitionerWidget")
-        PointCloudPartitionerWidget.resize(884, 761)
+        PointCloudPartitionerWidget.resize(884, 859)
         self.verticalLayout_10 = QVBoxLayout(PointCloudPartitionerWidget)
         self.verticalLayout_10.setObjectName(u"verticalLayout_10")
         self.groupBox = QGroupBox(PointCloudPartitionerWidget)
@@ -50,12 +50,12 @@ class Ui_PointCloudPartitionerWidget(object):
         self.groupTableView.setAcceptDrops(True)
         self.groupTableView.setStyleSheet(u"QTableView { padding: 3px; }\n"
 "QTableView::item { padding: 3px; }")
-        self.groupTableView.setSizeAdjustPolicy(QAbstractScrollArea.AdjustIgnored)
+        self.groupTableView.setSizeAdjustPolicy(QAbstractScrollArea.SizeAdjustPolicy.AdjustIgnored)
         self.groupTableView.setDragEnabled(True)
-        self.groupTableView.setDragDropMode(QAbstractItemView.InternalMove)
-        self.groupTableView.setDefaultDropAction(Qt.MoveAction)
-        self.groupTableView.setSelectionMode(QAbstractItemView.SingleSelection)
-        self.groupTableView.setSelectionBehavior(QAbstractItemView.SelectRows)
+        self.groupTableView.setDragDropMode(QAbstractItemView.DragDropMode.InternalMove)
+        self.groupTableView.setDefaultDropAction(Qt.DropAction.MoveAction)
+        self.groupTableView.setSelectionMode(QAbstractItemView.SelectionMode.SingleSelection)
+        self.groupTableView.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
         self.groupTableView.setShowGrid(False)
         self.groupTableView.horizontalHeader().setVisible(False)
         self.groupTableView.horizontalHeader().setMinimumSectionSize(20)
@@ -93,34 +93,29 @@ class Ui_PointCloudPartitionerWidget(object):
 
         self.groupBox_7 = QGroupBox(self.groupBox)
         self.groupBox_7.setObjectName(u"groupBox_7")
-        self.verticalLayout_8 = QVBoxLayout(self.groupBox_7)
-        self.verticalLayout_8.setObjectName(u"verticalLayout_8")
-        self.gridLayout_3 = QGridLayout()
-        self.gridLayout_3.setObjectName(u"gridLayout_3")
+        self.gridLayout_5 = QGridLayout(self.groupBox_7)
+        self.gridLayout_5.setObjectName(u"gridLayout_5")
         self.pointsFieldComboBox = QComboBox(self.groupBox_7)
         self.pointsFieldComboBox.setObjectName(u"pointsFieldComboBox")
 
-        self.gridLayout_3.addWidget(self.pointsFieldComboBox, 0, 1, 1, 1)
-
-        self.pointsFieldLabel = QLabel(self.groupBox_7)
-        self.pointsFieldLabel.setObjectName(u"pointsFieldLabel")
-        self.pointsFieldLabel.setMaximumSize(QSize(160, 16777215))
-
-        self.gridLayout_3.addWidget(self.pointsFieldLabel, 0, 0, 1, 1)
+        self.gridLayout_5.addWidget(self.pointsFieldComboBox, 0, 1, 1, 1)
 
         self.meshFieldLabel = QLabel(self.groupBox_7)
         self.meshFieldLabel.setObjectName(u"meshFieldLabel")
         self.meshFieldLabel.setMaximumSize(QSize(160, 16777215))
 
-        self.gridLayout_3.addWidget(self.meshFieldLabel, 1, 0, 1, 1)
+        self.gridLayout_5.addWidget(self.meshFieldLabel, 3, 0, 1, 1)
 
         self.meshFieldComboBox = QComboBox(self.groupBox_7)
         self.meshFieldComboBox.setObjectName(u"meshFieldComboBox")
 
-        self.gridLayout_3.addWidget(self.meshFieldComboBox, 1, 1, 1, 1)
+        self.gridLayout_5.addWidget(self.meshFieldComboBox, 3, 1, 1, 1)
 
+        self.pointsFieldLabel = QLabel(self.groupBox_7)
+        self.pointsFieldLabel.setObjectName(u"pointsFieldLabel")
+        self.pointsFieldLabel.setMaximumSize(QSize(160, 16777215))
 
-        self.verticalLayout_8.addLayout(self.gridLayout_3)
+        self.gridLayout_5.addWidget(self.pointsFieldLabel, 0, 0, 1, 1)
 
 
         self.verticalLayout_9.addWidget(self.groupBox_7)
@@ -191,6 +186,12 @@ class Ui_PointCloudPartitionerWidget(object):
 
         self.verticalLayout_7.addWidget(self.pushButtonSelectPointsOnSurface)
 
+        self.pushButtonDeleteSelectedSurfaceSection = QPushButton(self.groupBox_5)
+        self.pushButtonDeleteSelectedSurfaceSection.setObjectName(u"pushButtonDeleteSelectedSurfaceSection")
+        self.pushButtonDeleteSelectedSurfaceSection.setEnabled(False)
+
+        self.verticalLayout_7.addWidget(self.pushButtonDeleteSelectedSurfaceSection)
+
 
         self.verticalLayout_9.addWidget(self.groupBox_5)
 
@@ -238,12 +239,20 @@ class Ui_PointCloudPartitionerWidget(object):
 
         self.groupBox_3 = QGroupBox(self.groupBox)
         self.groupBox_3.setObjectName(u"groupBox_3")
-        self.verticalLayout = QVBoxLayout(self.groupBox_3)
-        self.verticalLayout.setObjectName(u"verticalLayout")
+        self.horizontalLayout_3 = QHBoxLayout(self.groupBox_3)
+        self.horizontalLayout_3.setObjectName(u"horizontalLayout_3")
+        self.horizontalSpacer_2 = QSpacerItem(40, 20, QSizePolicy.Expanding, QSizePolicy.Minimum)
+
+        self.horizontalLayout_3.addItem(self.horizontalSpacer_2)
+
         self.pushButtonViewAll = QPushButton(self.groupBox_3)
         self.pushButtonViewAll.setObjectName(u"pushButtonViewAll")
 
-        self.verticalLayout.addWidget(self.pushButtonViewAll)
+        self.horizontalLayout_3.addWidget(self.pushButtonViewAll)
+
+        self.horizontalSpacer_3 = QSpacerItem(40, 20, QSizePolicy.Expanding, QSizePolicy.Minimum)
+
+        self.horizontalLayout_3.addItem(self.horizontalSpacer_3)
 
 
         self.verticalLayout_9.addWidget(self.groupBox_3)
@@ -293,13 +302,14 @@ class Ui_PointCloudPartitionerWidget(object):
         self.pushButtonAddToGroup.setText(QCoreApplication.translate("PointCloudPartitionerWidget", u"Add Selected Points to Group", None))
         self.pushButtonRemoveFromGroup.setText(QCoreApplication.translate("PointCloudPartitionerWidget", u"Remove Selected Points from Group", None))
         self.groupBox_7.setTitle(QCoreApplication.translate("PointCloudPartitionerWidget", u"Coordinates", None))
-        self.pointsFieldLabel.setText(QCoreApplication.translate("PointCloudPartitionerWidget", u"Points Coordinates Field:", None))
         self.meshFieldLabel.setText(QCoreApplication.translate("PointCloudPartitionerWidget", u"Mesh Coordinates Field:", None))
+        self.pointsFieldLabel.setText(QCoreApplication.translate("PointCloudPartitionerWidget", u"Points Coordinates Field:", None))
         self.groupBox_5.setTitle(QCoreApplication.translate("PointCloudPartitionerWidget", u"Selection", None))
         self.label_2.setText(QCoreApplication.translate("PointCloudPartitionerWidget", u"Selection Mode:", None))
         self.label_3.setText(QCoreApplication.translate("PointCloudPartitionerWidget", u"Selection Type:", None))
         self.labelTolerance.setText(QCoreApplication.translate("PointCloudPartitionerWidget", u"Surface-Point Tolerance:", None))
         self.pushButtonSelectPointsOnSurface.setText(QCoreApplication.translate("PointCloudPartitionerWidget", u"Select Points on Surface", None))
+        self.pushButtonDeleteSelectedSurfaceSection.setText(QCoreApplication.translate("PointCloudPartitionerWidget", u"Delete Selected Surface Section", None))
         self.groupBox_6.setTitle(QCoreApplication.translate("PointCloudPartitionerWidget", u"Visibility", None))
         self.checkBoxSurfacesVisibility.setText(QCoreApplication.translate("PointCloudPartitionerWidget", u"Surfaces", None))
         self.checkBoxPointsVisibility.setText(QCoreApplication.translate("PointCloudPartitionerWidget", u"Points", None))
