@@ -30,9 +30,10 @@ def _create_text_graphics(scene, coordinate_field):
 
 def _create_surface_graphics(mesh_region):
     mesh_scene = mesh_region.getScene()
-    surfaces = mesh_scene.createGraphicsSurfaces()
-    surfaces.setRenderPolygonMode(Graphics.RENDER_POLYGON_MODE_SHADED)
-    surfaces.setVisibilityFlag(True)
+    with ChangeManager(mesh_scene):
+        surfaces = mesh_scene.createGraphicsSurfaces()
+        surfaces.setRenderPolygonMode(Graphics.RENDER_POLYGON_MODE_SHADED)
+        surfaces.setVisibilityFlag(True)
 
     # field_module = mesh_region.getFieldmodule()
     # material_module = mesh_scene.getMaterialmodule()
@@ -170,9 +171,16 @@ class PointCloudPartitionerScene(object):
         attributes.setLabelText(1, handler_label)
 
     def set_node_graphics_subgroup_field(self, field):
-        if self._node_graphics is not None:
-            if field is not None:
-                self._node_graphics.setSubgroupField(field)
+        if self._node_graphics is not None and field is not None:
+            self._node_graphics.setSubgroupField(field)
+
+    def set_surface_graphics_subgroup_field(self, field):
+        if self._surface_graphics is not None and field is not None:
+            with ChangeManager(self._surface_graphics.getScene()):
+                self._surface_graphics.setSubgroupField(field)
+
+    def get_surface_graphics_subgroup_field(self):
+        return self._surface_graphics.getSubgroupField()
 
     def get_point_size(self):
         return self._data_point_base_size

@@ -122,8 +122,8 @@ class Ui_PointCloudPartitionerWidget(object):
 
         self.groupBox_5 = QGroupBox(self.groupBox)
         self.groupBox_5.setObjectName(u"groupBox_5")
-        self.verticalLayout_7 = QVBoxLayout(self.groupBox_5)
-        self.verticalLayout_7.setObjectName(u"verticalLayout_7")
+        self.verticalLayout = QVBoxLayout(self.groupBox_5)
+        self.verticalLayout.setObjectName(u"verticalLayout")
         self.gridLayout_2 = QGridLayout()
         self.gridLayout_2.setObjectName(u"gridLayout_2")
         self.comboBoxSelectionMode = QComboBox(self.groupBox_5)
@@ -157,7 +157,7 @@ class Ui_PointCloudPartitionerWidget(object):
         self.gridLayout_2.addWidget(self.label_3, 2, 0, 1, 1)
 
 
-        self.verticalLayout_7.addLayout(self.gridLayout_2)
+        self.verticalLayout.addLayout(self.gridLayout_2)
 
         self.gridLayout_4 = QGridLayout()
         self.gridLayout_4.setObjectName(u"gridLayout_4")
@@ -178,19 +178,35 @@ class Ui_PointCloudPartitionerWidget(object):
         self.gridLayout_4.addWidget(self.doubleSpinBoxTolerance, 0, 1, 1, 1)
 
 
-        self.verticalLayout_7.addLayout(self.gridLayout_4)
+        self.verticalLayout.addLayout(self.gridLayout_4)
 
         self.pushButtonSelectPointsOnSurface = QPushButton(self.groupBox_5)
         self.pushButtonSelectPointsOnSurface.setObjectName(u"pushButtonSelectPointsOnSurface")
         self.pushButtonSelectPointsOnSurface.setEnabled(False)
 
-        self.verticalLayout_7.addWidget(self.pushButtonSelectPointsOnSurface)
+        self.verticalLayout.addWidget(self.pushButtonSelectPointsOnSurface)
 
         self.pushButtonDeleteSelectedSurfaceSection = QPushButton(self.groupBox_5)
         self.pushButtonDeleteSelectedSurfaceSection.setObjectName(u"pushButtonDeleteSelectedSurfaceSection")
         self.pushButtonDeleteSelectedSurfaceSection.setEnabled(False)
 
-        self.verticalLayout_7.addWidget(self.pushButtonDeleteSelectedSurfaceSection)
+        self.verticalLayout.addWidget(self.pushButtonDeleteSelectedSurfaceSection)
+
+        self.horizontalLayout_4 = QHBoxLayout()
+        self.horizontalLayout_4.setObjectName(u"horizontalLayout_4")
+        self.label_4 = QLabel(self.groupBox_5)
+        self.label_4.setObjectName(u"label_4")
+
+        self.horizontalLayout_4.addWidget(self.label_4)
+
+        self.comboBoxDeleteSurfaceHistory = QComboBox(self.groupBox_5)
+        self.comboBoxDeleteSurfaceHistory.setObjectName(u"comboBoxDeleteSurfaceHistory")
+        self.comboBoxDeleteSurfaceHistory.setEnabled(False)
+
+        self.horizontalLayout_4.addWidget(self.comboBoxDeleteSurfaceHistory)
+
+
+        self.verticalLayout.addLayout(self.horizontalLayout_4)
 
 
         self.verticalLayout_9.addWidget(self.groupBox_5)
@@ -310,6 +326,7 @@ class Ui_PointCloudPartitionerWidget(object):
         self.labelTolerance.setText(QCoreApplication.translate("PointCloudPartitionerWidget", u"Surface-Point Tolerance:", None))
         self.pushButtonSelectPointsOnSurface.setText(QCoreApplication.translate("PointCloudPartitionerWidget", u"Select Points on Surface", None))
         self.pushButtonDeleteSelectedSurfaceSection.setText(QCoreApplication.translate("PointCloudPartitionerWidget", u"Delete Selected Surface Section", None))
+        self.label_4.setText(QCoreApplication.translate("PointCloudPartitionerWidget", u"Delete History:", None))
         self.groupBox_6.setTitle(QCoreApplication.translate("PointCloudPartitionerWidget", u"Visibility", None))
         self.checkBoxSurfacesVisibility.setText(QCoreApplication.translate("PointCloudPartitionerWidget", u"Surfaces", None))
         self.checkBoxPointsVisibility.setText(QCoreApplication.translate("PointCloudPartitionerWidget", u"Points", None))
