@@ -78,7 +78,6 @@ class PointCloudPartitionerWidget(QtWidgets.QWidget):
         self._scene = PointCloudPartitionerScene(model)
         self._selection_handler = CustomSceneSelection(QtCore.Qt.Key.Key_S)
         self._field_module = None
-        self._connected_set_index_field = None
         self._points_field_list = ["---"]
         self._surfaces_field_list = ["---"]
         self._connected_sets = []
@@ -426,100 +425,105 @@ class PointCloudPartitionerWidget(QtWidgets.QWidget):
         progress.setWindowModality(QtCore.Qt.WindowModality.WindowModal)
         return progress
 
+    def _progress_update(self, value):
+        pass
+
     def _select_points_on_surface(self):
         selection_mesh_group = self._get_mesh_selection_group()
         point_coordinate_field = self._model.get_point_cloud_coordinates()
         point_field_module = point_coordinate_field.getFieldmodule()
 
-        if self._connected_set_index_field is None:
-            mesh_coordinate_field = self._model.get_mesh_coordinates()
+        if self._model.get_connected_set_index_field() is None:
+            ignore_identifiers = self._list_ignore_element_identifiers()
+            self._model.determine_point_connected_surface(self._connected_sets, ignore_identifiers, self._progress_update)
+            # mesh_coordinate_field = self._model.get_mesh_coordinates()
+            #
+            # mesh_region = self._model.get_surfaces_region()
+            #
+            # mesh_field_module = mesh_coordinate_field.getFieldmodule()
+            #
+            # mesh2d = mesh_field_module.findMeshByDimension(2)
+            #
+            # # Transfer datapoints over to mesh region.
+            # data_points = self._model.get_data_points()
+            # copy_nodeset(mesh_region, data_points)
+            # copied_data_points = mesh_field_module.findNodesetByFieldDomainType(Field.DOMAIN_TYPE_DATAPOINTS)
+            #
+            # self._progress_dialog = self._prepare_progress_dialog("Calculating locations ...", "Cancel", copied_data_points.getSize())
+            #
+            # with ChangeManager(mesh_field_module), ChangeManager(point_field_module):
+            #     self._connected_set_index_field = point_field_module.createFieldFiniteElement(1)
+            #     find_host_coordinates = mesh_field_module.createFieldFindMeshLocation(mesh_coordinate_field, mesh_coordinate_field, mesh2d)
+            #     find_host_coordinates.setSearchMode(FieldFindMeshLocation.SEARCH_MODE_NEAREST)
+            #     host_coordinates = mesh_field_module.createFieldEmbedded(mesh_coordinate_field, find_host_coordinates)
+            #
+            #     data_projection_delta_coordinate_field = mesh_field_module.createFieldSubtract(
+            #                 mesh_coordinate_field,
+            #                 host_coordinates)
+            #     data_projection_error_field = mesh_field_module.createFieldMagnitude(
+            #                 data_projection_delta_coordinate_field)
+            #     tolerance_value = self._ui.doubleSpinBoxTolerance.value()
+            #     tolerance_field = mesh_field_module.createFieldConstant(tolerance_value)
+            #
+            #     conditional_field = mesh_field_module.createFieldLessThan(data_projection_error_field, tolerance_field)
+            #
+            #     datapoint_template = data_points.createNodetemplate()
+            #     datapoint_template.defineField(self._connected_set_index_field)
+            #
+            #     identifiers = get_identifiers(copied_data_points)
+            #     divisions = 1
+            #     chunk_size = len(identifiers) // divisions
+            #     split_identifiers = [identifiers[i * chunk_size: (i + 1) * chunk_size] for i in range(divisions)]
+            #     remainder = identifiers[divisions*chunk_size:]
+            #     if remainder:
+            #         split_identifiers.append(remainder)
+            #
+            #     cancelled = False
+            #     count = 0
+            #
+            #     num_datapoints = len(identifiers)
+            #     update_interval = max(1, int(num_datapoints * 0.01))
+            #     progress_report_points = set([i for i in range(update_interval)] + [i for i in range(update_interval, num_datapoints, update_interval)])
+            #     identifier_surface_index_map = {}
+            #     mesh_cache = mesh_field_module.createFieldcache()
+            #     st_time = int_time = time.time()
+            #     for identifier in identifiers:
+            #         datapoint = copied_data_points.findNodeByIdentifier(identifier)
+            #         element_identifier, value = _find_datapoint_location(mesh_cache, conditional_field, find_host_coordinates, datapoint)
+            #
+            #         # if value > 0.5:
+            #         #     index = self._connected_set_index(element_identifier)
+            #         #     if index != -1:
+            #         #         identifier_surface_index_map[identifier] = index
+            #
+            #         if count in progress_report_points:
+            #             now = time.time()
+            #             print(f"Elapsed time [{count}/{num_datapoints}]: {now - st_time:.2f} {now - int_time:.2f}")
+            #             int_time = now
+            #             self._progress_dialog.setValue(count)
+            #         count += 1
+            #         if self._progress_dialog.wasCanceled():
+            #             cancelled = True
+            #             break
+            #
+            #     self._progress_dialog.setValue(num_datapoints)
+            #     copied_data_points.destroyAllNodes()
+            #     if cancelled:
+            #         self._connected_set_index_field = None
+            #
+            #     print(len(identifier_surface_index_map))
+            #     point_cache = point_field_module.createFieldcache()
+            #     # point_datapoint = data_points.findNodeByIdentifier(identifier)
+            #     # point_datapoint.merge(datapoint_template)
+            #     # point_cache.setNode(point_datapoint)
+            #     # self._connected_set_index_field.assignReal(point_cache, index)
 
-            mesh_region = self._model.get_surfaces_region()
-
-            mesh_field_module = mesh_coordinate_field.getFieldmodule()
-
-            mesh2d = mesh_field_module.findMeshByDimension(2)
-
-            # Transfer datapoints over to mesh region.
-            data_points = self._model.get_data_points()
-            copy_nodeset(mesh_region, data_points)
-            copied_data_points = mesh_field_module.findNodesetByFieldDomainType(Field.DOMAIN_TYPE_DATAPOINTS)
-
-            self._progress_dialog = self._prepare_progress_dialog("Calculating locations ...", "Cancel", copied_data_points.getSize())
-
-            with ChangeManager(mesh_field_module), ChangeManager(point_field_module):
-                self._connected_set_index_field = point_field_module.createFieldFiniteElement(1)
-                find_host_coordinates = mesh_field_module.createFieldFindMeshLocation(mesh_coordinate_field, mesh_coordinate_field, mesh2d)
-                find_host_coordinates.setSearchMode(FieldFindMeshLocation.SEARCH_MODE_NEAREST)
-                host_coordinates = mesh_field_module.createFieldEmbedded(mesh_coordinate_field, find_host_coordinates)
-
-                data_projection_delta_coordinate_field = mesh_field_module.createFieldSubtract(
-                            mesh_coordinate_field,
-                            host_coordinates)
-                data_projection_error_field = mesh_field_module.createFieldMagnitude(
-                            data_projection_delta_coordinate_field)
-                tolerance_value = self._ui.doubleSpinBoxTolerance.value()
-                tolerance_field = mesh_field_module.createFieldConstant(tolerance_value)
-
-                conditional_field = mesh_field_module.createFieldLessThan(data_projection_error_field, tolerance_field)
-
-                datapoint_template = data_points.createNodetemplate()
-                datapoint_template.defineField(self._connected_set_index_field)
-
-                identifiers = get_identifiers(copied_data_points)
-                divisions = 1
-                chunk_size = len(identifiers) // divisions
-                split_identifiers = [identifiers[i * chunk_size: (i + 1) * chunk_size] for i in range(divisions)]
-                remainder = identifiers[divisions*chunk_size:]
-                if remainder:
-                    split_identifiers.append(remainder)
-
-                cancelled = False
-                count = 0
-
-                num_datapoints = len(identifiers)
-                update_interval = max(1, int(num_datapoints * 0.01))
-                progress_report_points = set([i for i in range(update_interval)] + [i for i in range(update_interval, num_datapoints, update_interval)])
-                identifier_surface_index_map = {}
-                mesh_cache = mesh_field_module.createFieldcache()
-                st_time = int_time = time.time()
-                for identifier in identifiers:
-                    datapoint = copied_data_points.findNodeByIdentifier(identifier)
-                    element_identifier, value = _find_datapoint_location(mesh_cache, conditional_field, find_host_coordinates, datapoint)
-
-                    # if value > 0.5:
-                    #     index = self._connected_set_index(element_identifier)
-                    #     if index != -1:
-                    #         identifier_surface_index_map[identifier] = index
-
-                    if count in progress_report_points:
-                        now = time.time()
-                        print(f"Elapsed time [{count}/{num_datapoints}]: {now - st_time:.2f} {now - int_time:.2f}")
-                        int_time = now
-                        self._progress_dialog.setValue(count)
-                    count += 1
-                    if self._progress_dialog.wasCanceled():
-                        cancelled = True
-                        break
-
-                self._progress_dialog.setValue(num_datapoints)
-                copied_data_points.destroyAllNodes()
-                if cancelled:
-                    self._connected_set_index_field = None
-
-                print(len(identifier_surface_index_map))
-                point_cache = point_field_module.createFieldcache()
-                # point_datapoint = data_points.findNodeByIdentifier(identifier)
-                # point_datapoint.merge(datapoint_template)
-                # point_cache.setNode(point_datapoint)
-                # self._connected_set_index_field.assignReal(point_cache, index)
-
-        if self._connected_set_index_field is not None:
+        if self._model.get_connected_set_index_field() is not None:
             element = selection_mesh_group.createElementiterator().next()
             index = self._connected_set_index(element.getIdentifier())
             with ChangeManager(point_field_module):
                 constant_field = point_field_module.createFieldConstant(index)
-                conditional_field = point_field_module.createFieldEqualTo(self._connected_set_index_field, constant_field)
+                conditional_field = point_field_module.createFieldEqualTo(self._model.get_connected_set_index_field(), constant_field)
 
             selection_group = self._get_node_selection_group()
             points_region = self._model.get_points_region()
@@ -559,6 +563,14 @@ class PointCloudPartitionerWidget(QtWidgets.QWidget):
         self._progress_dialog.setValue(value)
         return self._progress_dialog.wasCanceled()
 
+    def _list_ignore_element_identifiers(self):
+        identifiers = []
+        for i in range(self._ui.comboBoxDeleteSurfaceHistory.currentIndex() + 1):
+            item = self._ui.comboBoxDeleteSurfaceHistory.itemData(i)
+            identifiers.extend(_element_ids(item))
+
+        return sorted(identifiers)
+
     def _select_connected_mesh_elements(self, mesh_selection_group):
         coordinate_field = self._model.get_mesh_coordinates()
         field_module = coordinate_field.getFieldmodule()
@@ -566,12 +578,7 @@ class PointCloudPartitionerWidget(QtWidgets.QWidget):
         if len(self._connected_sets) == 0:
             mesh = self._model.get_mesh()
             element_count = mesh.getSize()
-            st_time = time.time()
-            identifiers = []
-            for i in range(self._ui.comboBoxDeleteSurfaceHistory.currentIndex() + 1):
-                item = self._ui.comboBoxDeleteSurfaceHistory.itemData(i)
-                identifiers.extend(_element_ids(item))
-                print(f"Elapsed time (i): {time.time() - st_time}")
+            identifiers = self._list_ignore_element_identifiers()
 
             self._progress_dialog = self._prepare_progress_dialog("Finding connected surfaces", "Cancel", element_count)
             connected_sets = find_connected_mesh_elements_0d(coordinate_field, mesh.getDimension(), ignore_elements=set(identifiers), progress_callback=self._connected_sets_progress)
@@ -642,7 +649,7 @@ class PointCloudPartitionerWidget(QtWidgets.QWidget):
 
     def _delete_surface_history_index_changed(self, index):
         self._update_delete_field_function_2()
-        self._connected_set_index_field = None
+        self._model.reset_connected_set_index_field()
 
     def _add_elements_to_group(self, element_group):
         # Add the selected Elements to a Group.
