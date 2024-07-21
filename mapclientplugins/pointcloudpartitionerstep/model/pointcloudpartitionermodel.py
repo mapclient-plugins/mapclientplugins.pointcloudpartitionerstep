@@ -4,11 +4,9 @@ Created: April, 2023
 @author: tsalemink
 """
 import math
-import time
 
 from cmlibs.maths.octree import VolumeOctree
-from cmlibs.maths.vectorops import sub, dot, cross, add, div, magnitude
-from cmlibs.utils.zinc.finiteelement import get_identifiers
+from cmlibs.maths.vectorops import sub, dot, cross
 from cmlibs.utils.zinc.general import ChangeManager
 from cmlibs.utils.zinc.region import convert_nodes_to_datapoints
 from cmlibs.utils.zinc.scene import scene_create_selection_group
@@ -135,13 +133,10 @@ class PointCloudPartitionerModel(object):
         material_module.defineStandardMaterials()
 
     def determine_point_connected_surface(self, connected_sets, ignore_identifiers, tolerance, progress_bar=None):
-        st_time = time.time()
         data_points = self.get_data_points()
         point_coordinate_field = self.get_point_cloud_coordinates()
         data_points_identifiers, data_points_location = _get_data_points(data_points, point_coordinate_field)
         num_data_points = len(data_points_location)
-        print(data_points_location[:5])
-        print(f"Elapsed time: {time.time() - st_time}")
         field_module = point_coordinate_field.getFieldmodule()
         with ChangeManager(field_module):
             field_cache = field_module.createFieldcache()
@@ -155,18 +150,6 @@ class PointCloudPartitionerModel(object):
         if element_identifiers is None:
             return
         num_elements = len(element_identifiers)
-        print(len(element_identifiers))
-        print(element_identifiers[:10])
-        print(element_points[:10])
-        # print(element_data[:3])
-        # print(mean_point)
-        print(min_bounding_point)
-        print(max_bounding_point)
-        print(data_points_location[:10])
-        print(data_points_identifiers[:10])
-        print(f"Elapsed time: {time.time() - st_time}")
-        # Elapsed time: 3.2276101112365723
-        # Elapsed time: 8.154422044754028
 
         update_indexes = {}
         if progress_bar is not None:
@@ -177,8 +160,6 @@ class PointCloudPartitionerModel(object):
             progress_bar.setMaximum(num_elements)
 
         connected_surface_map = {c: i for i, k in enumerate(connected_sets) for c in k}
-        print(f"Elapsed time: {time.time() - st_time}")
-        # element_connected_set = [connected_set_callback(el_id) for el_id in element_identifiers]
 
         # Populate Octtree.
         bb = [min_bounding_point, max_bounding_point]
@@ -212,26 +193,12 @@ class PointCloudPartitionerModel(object):
             count += 1
             if found:
                 data_point_surface_map[data_points_identifiers[i]] = found.surface()
-        #     found = None
-        #     for j, t in enumerate(element_data):
-        #         inv_den = 1 / (t[2] * t[4] - t[3] * t[3])
-        #         v2 = sub(p, element_points[i][0])
-        #         dot02 = dot(t[0], v2)
-        #         dot12 = dot(t[1], v2)
-        #         u = (t[4] * dot02 - t[2] * dot12) * inv_den
-        #         v = (t[2] * dot12 - t[3] * dot02) * inv_den
-        #         if (u >= 0) and (v >= 0) and (u + v < 1):
-        #             found = j
-        #             break
-        #
+
             if i in update_indexes:
                 progress_bar.setValue(i)
                 if progress_bar.wasCanceled():
                     return
-            #     print(f"Elapsed time [{i}/{num_data_points}: {time.time() - st_time}", found)
 
-        print(f"Elapsed time: {time.time() - st_time}")
-        print(len(data_point_surface_map))
         field_module = point_coordinate_field.getFieldmodule()
         with ChangeManager(field_module):
             self._connected_set_index_field = field_module.createFieldFiniteElement(1)
@@ -249,7 +216,6 @@ class PointCloudPartitionerModel(object):
 
         if progress_bar is not None:
             progress_bar.setValue(num_data_points)
-        print(f"Elapsed time: {time.time() - st_time}")
 
 
 def _get_data_points(data_points_group, coordinate_field):
@@ -287,8 +253,7 @@ def _transform_mesh_to_list_form(mesh, mesh_field, ignore_identifiers, progress_
         field_group = field_module.createFieldGroup()
         mesh_group = field_group.getOrCreateMeshGroup(mesh)
         mesh_group.addElementsConditional(mesh_field)
-        print("====:", mesh_group.getSize())
-        num_elements = 1000
+        num_elements = mesh_group.getSize()
         update_interval = max(1, num_elements // 200)
         update_indexes = set([i for i in range(update_interval)] + [i for i in range(update_interval, num_elements, update_interval)])
         progress_bar.setLabelText("Analysing elements ...")
@@ -314,20 +279,6 @@ def _transform_mesh_to_list_form(mesh, mesh_field, ignore_identifiers, progress_
             identifier_index_map[element_identifier] = len(element_identifiers)
             element_identifiers.append(element_identifier)
             element_nodes.append(node_identifiers)
-            # if local_node_count > 2:
-            #     v0 = sub(node_identifiers[1], node_identifiers[0])
-            #     v1 = sub(node_identifiers[2], node_identifiers[0])
-            #     dot00 = dot(v0, v0)
-            #     dot01 = dot(v0, v1)
-            #     dot11 = dot(v1, v1)
-            #     n = normalise(cross(v1, v0))
-            #     m = div(add(add(node_identifiers[2], node_identifiers[1]), node_identifiers[0]), 3)
-            #     r = -math.inf
-            #     # for i in range(3):
-            #     #     mi = [min(a_, b_) for a_, b_ in zip(mi, node_identifiers[i])]
-            #     #     ma = [max(a_, b_) for a_, b_ in zip(ma, node_identifiers[i])]
-            #     #     r = max(r, magnitude(sub(node_identifiers[i], m)))
-            #     element_data.append((v0, v1, dot00, dot01, dot11, n, m, r))
 
             if count in update_indexes:
                 progress_bar.setValue(count)

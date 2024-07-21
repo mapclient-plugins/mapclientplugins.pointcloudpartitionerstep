@@ -7,18 +7,13 @@ import colorsys
 import os
 import json
 import hashlib
-import time
 
 from PySide6 import QtWidgets, QtCore
-from cmlibs.utils.zinc.finiteelement import get_identifiers
 
 from cmlibs.utils.zinc.general import ChangeManager
 from cmlibs.utils.zinc.mesh import find_connected_mesh_elements_0d
-from cmlibs.utils.zinc.region import copy_nodeset
 from cmlibs.utils.zinc.scene import scene_get_or_create_selection_group
 from cmlibs.widgets.handlers.scenemanipulation import SceneManipulation
-from cmlibs.zinc.field import Field
-from cmlibs.zinc.field import FieldFindMeshLocation
 from cmlibs.zinc.material import Material
 
 from mapclientplugins.pointcloudpartitionerstep.view.ui_pointcloudpartitionerwidget import Ui_PointCloudPartitionerWidget
