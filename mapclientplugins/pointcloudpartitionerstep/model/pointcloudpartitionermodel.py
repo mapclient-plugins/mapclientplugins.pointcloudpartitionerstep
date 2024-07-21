@@ -134,7 +134,7 @@ class PointCloudPartitionerModel(object):
         material_module = self._context.getMaterialmodule()
         material_module.defineStandardMaterials()
 
-    def determine_point_connected_surface(self, connected_sets, ignore_identifiers, progress_callback=None):
+    def determine_point_connected_surface(self, connected_sets, ignore_identifiers, tolerance, progress_bar=None):
         st_time = time.time()
         data_points = self.get_data_points()
         point_coordinate_field = self.get_point_cloud_coordinates()
@@ -151,7 +151,9 @@ class PointCloudPartitionerModel(object):
             # result, mean_point = nodeset_mean.evaluateReal(field_cache, 3)
             result, min_bounding_point = nodeset_minimum.evaluateReal(field_cache, 3)
             result, max_bounding_point = nodeset_maximum.evaluateReal(field_cache, 3)
-        element_identifiers, element_points, element_data = _transform_mesh_to_list_form(self._mesh, self.get_mesh_coordinates(), ignore_identifiers)
+        element_identifiers, element_points, element_data = _transform_mesh_to_list_form(self._mesh, self.get_mesh_coordinates(), ignore_identifiers, progress_bar)
+        if element_identifiers is None:
+            return
         num_elements = len(element_identifiers)
         print(len(element_identifiers))
         print(element_identifiers[:10])
@@ -167,9 +169,12 @@ class PointCloudPartitionerModel(object):
         # Elapsed time: 8.154422044754028
 
         update_indexes = {}
-        if progress_callback is not None:
+        if progress_bar is not None:
             update_interval = max(1, num_elements // 200)
             update_indexes = set([i for i in range(update_interval)] + [i for i in range(update_interval, num_elements, update_interval)])
+            progress_bar.setValue(0)
+            progress_bar.setLabelText("Rendering in Octree ...")
+            progress_bar.setMaximum(num_elements)
 
         connected_surface_map = {c: i for i, k in enumerate(connected_sets) for c in k}
         print(f"Elapsed time: {time.time() - st_time}")
@@ -177,7 +182,7 @@ class PointCloudPartitionerModel(object):
 
         # Populate Octtree.
         bb = [min_bounding_point, max_bounding_point]
-        o = VolumeOctree(bb)
+        o = VolumeOctree(bb, tolerance)
         for i, t in enumerate(element_points):
             obj = DataObject({
                 "identifier": element_identifiers[i],
@@ -185,27 +190,26 @@ class PointCloudPartitionerModel(object):
                 "points": t,
             })
             o.insert_object(obj)
-            # if i in update_indexes:
-            #     print(f"Elapsed time [{i}/{num_elements}]: {time.time() - st_time}")
+            if i in update_indexes:
+                progress_bar.setValue(i)
+                if progress_bar.wasCanceled():
+                    return
 
-        print(f"Elapsed time: {time.time() - st_time}")
-        # with open("octree.txt", "w") as fh:
-        #     fh.write(f"{o}")
+        if progress_bar is not None:
+            progress_bar.setValue(num_elements)
 
-        if progress_callback is not None:
+        if progress_bar is not None:
             update_interval = max(1, num_data_points // 200)
             update_indexes = set([i for i in range(update_interval)] + [i for i in range(update_interval, num_data_points, update_interval)])
+            progress_bar.setValue(0)
+            progress_bar.setLabelText("Finding data point surface ...")
+            progress_bar.setMaximum(num_data_points)
 
         data_point_surface_map = {}
         count = 0
         for i, p in enumerate(data_points_location):
             found = o.find_object(p)
             count += 1
-            if 300 < count < 311:
-                if found:
-                    print(found.identifier(), data_points_identifiers[i], data_points_location[i])
-                else:
-                    print(-1, data_points_identifiers[i], data_points_location[i])
             if found:
                 data_point_surface_map[data_points_identifiers[i]] = found.surface()
         #     found = None
@@ -220,7 +224,10 @@ class PointCloudPartitionerModel(object):
         #             found = j
         #             break
         #
-            # if i in update_indexes:
+            if i in update_indexes:
+                progress_bar.setValue(i)
+                if progress_bar.wasCanceled():
+                    return
             #     print(f"Elapsed time [{i}/{num_data_points}: {time.time() - st_time}", found)
 
         print(f"Elapsed time: {time.time() - st_time}")
@@ -239,6 +246,9 @@ class PointCloudPartitionerModel(object):
                     point_datapoint.merge(datapoint_template)
                     point_cache.setNode(point_datapoint)
                     self._connected_set_index_field.assignReal(point_cache, data_point_surface_map[identifier])
+
+        if progress_bar is not None:
+            progress_bar.setValue(num_data_points)
         print(f"Elapsed time: {time.time() - st_time}")
 
 
@@ -262,18 +272,32 @@ def _get_data_points(data_points_group, coordinate_field):
     return identifiers, points
 
 
-def _transform_mesh_to_list_form(mesh, mesh_field, ignore_identifiers):
+def _transform_mesh_to_list_form(mesh, mesh_field, ignore_identifiers, progress_bar=None):
     element_iterator = mesh.createElementiterator()
     element = element_iterator.next()
     element_data = []
     element_nodes = []
     element_identifiers = []
     identifier_index_map = {}
-    # mi = [math.inf] * 3
-    # ma = [-math.inf] * 3
+
     field_module = mesh_field.getFieldmodule()
+
+    update_indexes = {}
+    if progress_bar is not None:
+        field_group = field_module.createFieldGroup()
+        mesh_group = field_group.getOrCreateMeshGroup(mesh)
+        mesh_group.addElementsConditional(mesh_field)
+        print("====:", mesh_group.getSize())
+        num_elements = 1000
+        update_interval = max(1, num_elements // 200)
+        update_indexes = set([i for i in range(update_interval)] + [i for i in range(update_interval, num_elements, update_interval)])
+        progress_bar.setLabelText("Analysing elements ...")
+        progress_bar.setMaximum(num_elements)
+        progress_bar.setValue(0)
+
     field_cache = field_module.createFieldcache()
     num_components = mesh_field.getNumberOfComponents()
+    count = 0
     with ChangeManager(field_module):
         while element.isValid():
             element_identifier = element.getIdentifier()
@@ -305,14 +329,18 @@ def _transform_mesh_to_list_form(mesh, mesh_field, ignore_identifiers):
             #     #     r = max(r, magnitude(sub(node_identifiers[i], m)))
             #     element_data.append((v0, v1, dot00, dot01, dot11, n, m, r))
 
+            if count in update_indexes:
+                progress_bar.setValue(count)
+                if progress_bar.wasCanceled():
+                    return None, None, None
+            count += 1
             element = element_iterator.next()
 
     for ignore_identifier in sorted(ignore_identifiers, reverse=True):
         index = identifier_index_map[ignore_identifier]
         del element_identifiers[index]
         del element_nodes[index]
-    # print(ma)
-    # print(mi)
+
     return element_identifiers, element_nodes, element_data
 
 

@@ -121,6 +121,7 @@ class PointCloudPartitionerWidget(QtWidgets.QWidget):
         self._ui.groupTableView.itemDelegateForColumn(1).button_clicked.connect(self._add_group_points_to_selection)
         self._ui.pushButtonDeleteSelectedSurfaceSection.clicked.connect(self._delete_selected_surfaces)
         self._ui.comboBoxDeleteSurfaceHistory.currentIndexChanged.connect(self._delete_surface_history_index_changed)
+        self._ui.doubleSpinBoxTolerance.valueChanged.connect(self._tolerance_value_changed)
 
     def _setup_field_combo_boxes(self):
         self._ui.pointsFieldComboBox.addItems(self._points_field_list)
@@ -162,6 +163,9 @@ class PointCloudPartitionerWidget(QtWidgets.QWidget):
 
     def _setup_point_size_spin_box(self):
         self._ui.pointSizeSpinBox.setValue(self._scene.get_point_size())
+
+    def _tolerance_value_changed(self, value):
+        self._model.reset_connected_set_index_field()
 
     def load(self, points_file_location, surfaces_file_location):
         self._field_module = self._model.get_points_region().getFieldmodule()
@@ -425,17 +429,17 @@ class PointCloudPartitionerWidget(QtWidgets.QWidget):
         progress.setWindowModality(QtCore.Qt.WindowModality.WindowModal)
         return progress
 
-    def _progress_update(self, value):
-        pass
-
     def _select_points_on_surface(self):
         selection_mesh_group = self._get_mesh_selection_group()
         point_coordinate_field = self._model.get_point_cloud_coordinates()
         point_field_module = point_coordinate_field.getFieldmodule()
 
+        self._progress_dialog = self._prepare_progress_dialog("Calculating locations ...", "Cancel", 1000)
+
         if self._model.get_connected_set_index_field() is None:
             ignore_identifiers = self._list_ignore_element_identifiers()
-            self._model.determine_point_connected_surface(self._connected_sets, ignore_identifiers, self._progress_update)
+            tolerance_value = self._ui.doubleSpinBoxTolerance.value()
+            self._model.determine_point_connected_surface(self._connected_sets, ignore_identifiers, tolerance_value, self._progress_dialog)
             # mesh_coordinate_field = self._model.get_mesh_coordinates()
             #
             # mesh_region = self._model.get_surfaces_region()
@@ -559,7 +563,7 @@ class PointCloudPartitionerWidget(QtWidgets.QWidget):
         if mesh_selected and whole_surfaces:
             self._select_connected_mesh_elements(mesh_selection_group)
 
-    def _connected_sets_progress(self, value):
+    def _update_progress(self, value):
         self._progress_dialog.setValue(value)
         return self._progress_dialog.wasCanceled()
 
@@ -581,7 +585,7 @@ class PointCloudPartitionerWidget(QtWidgets.QWidget):
             identifiers = self._list_ignore_element_identifiers()
 
             self._progress_dialog = self._prepare_progress_dialog("Finding connected surfaces", "Cancel", element_count)
-            connected_sets = find_connected_mesh_elements_0d(coordinate_field, mesh.getDimension(), ignore_elements=set(identifiers), progress_callback=self._connected_sets_progress)
+            connected_sets = find_connected_mesh_elements_0d(coordinate_field, mesh.getDimension(), ignore_elements=set(identifiers), progress_callback=self._update_progress)
             self._progress_dialog.setValue(element_count)
             if connected_sets is None:
                 return
@@ -595,17 +599,15 @@ class PointCloudPartitionerWidget(QtWidgets.QWidget):
             _select_elements(field_module, mesh_selection_group, selected_elements[0])
 
     def _delete_selected_surfaces(self):
-        print('1', self._ui.comboBoxDeleteSurfaceHistory.currentIndex())
         for i in range(self._ui.comboBoxDeleteSurfaceHistory.count() - 1, self._ui.comboBoxDeleteSurfaceHistory.currentIndex(), -1):
             self._ui.comboBoxDeleteSurfaceHistory.removeItem(i)
-        print('2', self._ui.comboBoxDeleteSurfaceHistory.currentIndex())
+
         scene = self._ui.widgetZinc.get_zinc_sceneviewer().getScene()
         selection_field = scene_get_or_create_selection_group(scene)
         self._update_delete_field_function(selection_field)
         scene.getSelectionField().castGroup().clear()
         self._surface_selection_updated()
         self._update_delete_field_function_2()
-        print('3', self._ui.comboBoxDeleteSurfaceHistory.currentIndex())
 
     def _create_element_group_from_identifiers(self, identifiers):
         surface_mesh = self._model.get_mesh()
