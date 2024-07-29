@@ -6,14 +6,13 @@ Created: April, 2023
 import math
 
 from cmlibs.maths.octree import VolumeOctree
-from cmlibs.maths.vectorops import sub, dot, cross
+from cmlibs.maths.vectorops import sub, dot, cross, normalize
 from cmlibs.utils.zinc.general import ChangeManager
 from cmlibs.utils.zinc.region import convert_nodes_to_datapoints
 from cmlibs.utils.zinc.scene import scene_create_selection_group
 from cmlibs.zinc.context import Context
 from cmlibs.zinc.field import Field
 from cmlibs.zinc.result import RESULT_OK
-from scaffoldmaker.utils.vector import normalise
 
 
 class PointCloudPartitionerModel(object):
@@ -313,7 +312,7 @@ class DataObject:
         pts = self._data["points"]
         v0 = sub(pts[1], pts[0])
         v1 = sub(pts[2], pts[0])
-        n = normalise(cross(v1, v0))
+        n = normalize(cross(v1, v0))
         v2 = sub(pt, pts[0])
         if math.fabs(dot(v2, n)) < tol:
             dot00 = dot(v0, v0)
