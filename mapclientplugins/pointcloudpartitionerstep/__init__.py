@@ -2,7 +2,7 @@
 MAP Client Plugin
 """
 
-__version__ = '0.4.0'
+__version__ = '0.4.1'
 __author__ = 'Timothy Salemink'
 __stepname__ = 'Point Cloud Partitioner'
 __location__ = 'https://github.com/mapclient-plugins/mapclientplugins.pointcloudpartitionerstep'
