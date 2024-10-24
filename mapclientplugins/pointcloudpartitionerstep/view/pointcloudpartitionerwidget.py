@@ -603,6 +603,8 @@ class PointCloudPartitionerWidget(QtWidgets.QWidget):
         scene.getSelectionField().castGroup().clear()
         self._surface_selection_updated()
         self._update_delete_field_function_2()
+        self._connected_sets = []
+        self._model.reset_connected_set_index_field()
 
     def _create_element_group_from_identifiers(self, identifiers):
         surface_mesh = self._model.get_mesh()
