@@ -10,16 +10,23 @@ import hashlib
 
 from PySide6 import QtWidgets, QtCore
 
-from cmlibs.utils.zinc.general import ChangeManager
+from cmlibs.utils.zinc.general import ChangeManager, rotate_to_next_standard_view
 from cmlibs.utils.zinc.mesh import find_connected_mesh_elements_0d
 from cmlibs.utils.zinc.scene import scene_get_or_create_selection_group
+from cmlibs.widgets.collapsibleboxwidget import CollapsibleBox
 from cmlibs.widgets.handlers.scenemanipulation import SceneManipulation
+from cmlibs.widgets.ui.ui_buttonswidget import Ui_Buttons
 from cmlibs.zinc.material import Material
 
-from mapclientplugins.pointcloudpartitionerstep.view.ui_pointcloudpartitionerwidget import Ui_PointCloudPartitionerWidget
 from mapclientplugins.pointcloudpartitionerstep.scene.pointcloudpartitionerscene import PointCloudPartitionerScene
 from mapclientplugins.pointcloudpartitionerstep.view.customsceneselection import CustomSceneSelection, MODE_MAP, TYPE_MAP
 from mapclientplugins.pointcloudpartitionerstep.view.grouptableview import GroupModel
+
+from mapclientplugins.pointcloudpartitionerstep.view.ui_coordinateswidget import Ui_Coordinates
+from mapclientplugins.pointcloudpartitionerstep.view.ui_displaysettingswidget import Ui_DisplaySettings
+from mapclientplugins.pointcloudpartitionerstep.view.ui_grouppointswidget import Ui_GroupPoints
+from mapclientplugins.pointcloudpartitionerstep.view.ui_pointcloudpartitionerwidget import Ui_PointCloudPartitionerWidget
+from mapclientplugins.pointcloudpartitionerstep.view.ui_selectionwidget import Ui_Selection
 
 
 def _select_elements(field_module, mesh_selection_group, element_identifiers):
@@ -55,7 +62,7 @@ def _element_ids(mesh_group):
     return identifiers
 
 
-class PointCloudPartitionerWidget(QtWidgets.QWidget):
+class PointCloudPartitionerWidget(QtWidgets.QMainWindow):
 
     def __init__(self, model, parent=None):
         super(PointCloudPartitionerWidget, self).__init__(parent)
@@ -63,7 +70,9 @@ class PointCloudPartitionerWidget(QtWidgets.QWidget):
 
         self._ui = Ui_PointCloudPartitionerWidget()
         self._ui.setupUi(self)
-        self._ui.pushButtonDeleteGroup.setEnabled(False)
+        self._setup_dock_widget()
+
+        self._group_points_ui.pushButtonDeleteGroup.setEnabled(False)
 
         self._callback = None
         self._location = None
@@ -95,69 +104,107 @@ class PointCloudPartitionerWidget(QtWidgets.QWidget):
         # self._ui.widgetZinc.setSelectionfilter(model.get_selection_filter())
 
     def _make_connections(self):
-        self._ui.pushButtonContinue.clicked.connect(self._continue_execution)
-        self._ui.pushButtonViewAll.clicked.connect(self._view_all_button_clicked)
+        self._buttons_ui.done_pushButton.clicked.connect(self._continue_execution)
+        self._buttons_ui.viewAll_pushButton.clicked.connect(self._view_all_button_clicked)
+        self._buttons_ui.stdViews_pushButton.clicked.connect(self._standard_views_button_clicked)
         self._ui.widgetZinc.graphics_initialized.connect(self._zinc_widget_ready)
         self._ui.widgetZinc.pixel_scale_changed.connect(self._pixel_scale_changed)
-        self._ui.pushButtonCreateGroup.clicked.connect(self._create_point_group)
-        self._ui.pushButtonDeleteGroup.clicked.connect(self._remove_associated_point_group)
-        self._ui.pushButtonAddToGroup.clicked.connect(self._add_selected_points_to_group)
-        self._ui.pushButtonRemoveFromGroup.clicked.connect(self._remove_selected_points_from_group)
-        self._ui.pointsFieldComboBox.textActivated.connect(self._update_point_cloud_field)
-        self._ui.meshFieldComboBox.textActivated.connect(self._update_mesh_field)
-        self._ui.comboBoxSelectionMode.currentIndexChanged.connect(self._update_selection_mode)
-        self._ui.comboBoxSelectionType.currentIndexChanged.connect(self._update_selection_type)
-        self._ui.pushButtonSelectPointsOnSurface.clicked.connect(self._select_points_on_surface)
-        self._ui.checkBoxSurfacesVisibility.stateChanged.connect(self._scene.set_surfaces_visibility)
-        self._ui.checkBoxPointsVisibility.stateChanged.connect(self._scene.set_points_visibility)
-        self._ui.pointSizeSpinBox.valueChanged.connect(self._scene.set_point_size)
+        self._group_points_ui.pushButtonCreateGroup.clicked.connect(self._create_point_group)
+        self._group_points_ui.pushButtonDeleteGroup.clicked.connect(self._remove_associated_point_group)
+        self._group_points_ui.pushButtonAddToGroup.clicked.connect(self._add_selected_points_to_group)
+        self._group_points_ui.pushButtonRemoveFromGroup.clicked.connect(self._remove_selected_points_from_group)
+        self._coordinates_ui.pointsFieldComboBox.textActivated.connect(self._update_point_cloud_field)
+        self._coordinates_ui.meshFieldComboBox.textActivated.connect(self._update_mesh_field)
+        self._selection_ui.comboBoxSelectionMode.currentIndexChanged.connect(self._update_selection_mode)
+        self._selection_ui.comboBoxSelectionType.currentIndexChanged.connect(self._update_selection_type)
+        self._selection_ui.pushButtonSelectPointsOnSurface.clicked.connect(self._select_points_on_surface)
+        self._display_settings_ui.checkBoxSurfacesVisibility.stateChanged.connect(self._scene.set_surfaces_visibility)
+        self._display_settings_ui.checkBoxPointsVisibility.stateChanged.connect(self._scene.set_points_visibility)
+        self._display_settings_ui.pointSizeSpinBox.valueChanged.connect(self._scene.set_point_size)
         self._ui.widgetZinc.handler_activated.connect(self._update_label_text)
         self._ui.widgetZinc.selection_updated.connect(self._selection_updated)
-        self._ui.groupTableView.itemDelegateForColumn(1).button_clicked.connect(self._add_group_points_to_selection)
-        self._ui.pushButtonDeleteSelectedSurfaceSection.clicked.connect(self._delete_selected_surfaces)
-        self._ui.comboBoxDeleteSurfaceHistory.currentIndexChanged.connect(self._delete_surface_history_index_changed)
-        self._ui.doubleSpinBoxTolerance.valueChanged.connect(self._tolerance_value_changed)
+        self._group_points_ui.groupTableView.itemDelegateForColumn(1).button_clicked.connect(self._add_group_points_to_selection)
+        self._selection_ui.pushButtonDeleteSelectedSurfaceSection.clicked.connect(self._delete_selected_surfaces)
+        self._selection_ui.comboBoxDeleteSurfaceHistory.currentIndexChanged.connect(self._delete_surface_history_index_changed)
+        self._selection_ui.doubleSpinBoxTolerance.valueChanged.connect(self._tolerance_value_changed)
+        self._selection_ui.pushButtonInvertSelection.clicked.connect(self._invert_selection_clicked)
+
+    def _setup_dock_widget(self):
+        parent_widget = QtWidgets.QWidget(self)
+
+        layout = QtWidgets.QVBoxLayout(parent_widget)
+        layout.setAlignment(QtCore.Qt.AlignmentFlag.AlignTop)
+        layout.setContentsMargins(0, 0, 0, 0)
+
+        self._identifier_label = QtWidgets.QLabel("Identifier: XXXX")
+        layout.addWidget(self._identifier_label)
+
+        self._group_points_ui = Ui_GroupPoints()
+        self._selection_ui = Ui_Selection()
+        self._display_settings_ui = Ui_DisplaySettings()
+        self._coordinates_ui = Ui_Coordinates()
+        self._buttons_ui = Ui_Buttons()
+
+        for ui in [self._group_points_ui, self._coordinates_ui, self._selection_ui, self._display_settings_ui]:
+            form_container = QtWidgets.QWidget()
+            ui.setupUi(form_container)
+            tools_box = CollapsibleBox(form_container.windowTitle(), checked=True if ui is self._group_points_ui else False)
+            tools_box.add_widget(form_container)
+            layout.addWidget(tools_box, stretch=1)
+
+        spacer = QtWidgets.QSpacerItem(20, 20, QtWidgets.QSizePolicy.Policy.Minimum, QtWidgets.QSizePolicy.Policy.Expanding)
+        layout.addSpacerItem(spacer)
+
+        form_container = QtWidgets.QWidget()
+        self._buttons_ui.setupUi(form_container)
+        layout.addWidget(form_container)
+
+        self._dock_widget = QtWidgets.QDockWidget("Controls", self)
+        self._dock_widget.setObjectName("ControlsDock")
+        self._dock_widget.setWidget(parent_widget)
+
+        self.addDockWidget(QtCore.Qt.DockWidgetArea.LeftDockWidgetArea, self._dock_widget)
 
     def _setup_field_combo_boxes(self):
-        self._ui.pointsFieldComboBox.addItems(self._points_field_list)
-        if self._ui.pointsFieldComboBox.count() == 2:
-            self._ui.pointsFieldComboBox.setCurrentIndex(1)
+        self._coordinates_ui.pointsFieldComboBox.addItems(self._points_field_list)
+        if self._coordinates_ui.pointsFieldComboBox.count() > 1:
+            self._coordinates_ui.pointsFieldComboBox.setCurrentIndex(1)
             self._update_point_cloud_field()
 
-        self._ui.meshFieldComboBox.addItems(self._surfaces_field_list)
-        if self._ui.meshFieldComboBox.count() == 2:
-            self._ui.meshFieldComboBox.setCurrentIndex(1)
+        self._coordinates_ui.meshFieldComboBox.addItems(self._surfaces_field_list)
+        if self._coordinates_ui.meshFieldComboBox.count() > 1:
+            self._coordinates_ui.meshFieldComboBox.setCurrentIndex(1)
             self._update_mesh_field()
 
     def _update_point_cloud_field(self):
-        self._model.update_point_cloud_coordinates(self._ui.pointsFieldComboBox.currentText())
+        self._model.update_point_cloud_coordinates(self._coordinates_ui.pointsFieldComboBox.currentText())
         self._scene.update_point_cloud_coordinates()
         # self._ui.widgetZinc.view_all()
 
     def _update_mesh_field(self):
-        self._model.update_mesh_coordinates(self._ui.meshFieldComboBox.currentText())
+        self._model.update_mesh_coordinates(self._coordinates_ui.meshFieldComboBox.currentText())
         self._scene.update_mesh_coordinates()
         # self._ui.widgetZinc.view_all()
 
     def _setup_table_view(self):
-        self._ui.groupTableView.setModel(GroupModel(self, self._ui.groupTableView))
+        self._group_points_ui.groupTableView.setModel(GroupModel(self, self._group_points_ui.groupTableView))
         # self._ui.groupTableView.setItemDelegate(TableDelegate(self._ui.groupTableView))
         # self._ui.groupTableView.horizontalHeader().setSectionResizeMode(0, QtWidgets.QHeaderView.ResizeMode.ResizeToContents)
-        self._ui.groupTableView.horizontalHeader().setSectionResizeMode(0, QtWidgets.QHeaderView.ResizeMode.Stretch)
-        self._ui.groupTableView.horizontalHeader().setSectionResizeMode(1, QtWidgets.QHeaderView.ResizeMode.Fixed)
-        selection_model = self._ui.groupTableView.selectionModel()
+        self._group_points_ui.groupTableView.horizontalHeader().setSectionResizeMode(0, QtWidgets.QHeaderView.ResizeMode.Stretch)
+        self._group_points_ui.groupTableView.horizontalHeader().setSectionResizeMode(1, QtWidgets.QHeaderView.ResizeMode.Fixed)
+        selection_model = self._group_points_ui.groupTableView.selectionModel()
         selection_model.selectionChanged.connect(self._group_selection_changed)
 
     def _setup_selection_mode_combo_box(self):
-        self._ui.comboBoxSelectionMode.addItems(MODE_MAP.keys())
+        self._selection_ui.comboBoxSelectionMode.addItems(MODE_MAP.keys())
         self._update_selection_mode()
 
     def _setup_selection_type_combo_box(self):
-        self._ui.comboBoxSelectionType.addItems(TYPE_MAP.keys())
+        self._selection_ui.comboBoxSelectionType.addItems(TYPE_MAP.keys())
         self._update_selection_type()
 
     def _setup_point_size_spin_box(self):
-        self._ui.pointSizeSpinBox.setValue(self._scene.get_point_size())
+        self._display_settings_ui.pointSizeSpinBox.setValue(self._scene.get_point_size())
 
     def _tolerance_value_changed(self, value):
         self._model.reset_connected_set_index_field()
@@ -204,11 +251,13 @@ class PointCloudPartitionerWidget(QtWidgets.QWidget):
 
     def set_location(self, location):
         self._location = location
+        self._identifier_label.setText(f"Identifier: {os.path.basename(location)}")
 
     def get_output_file(self):
         return os.path.join(self._location, "nodes-with-groups.exf")
 
     def _group_selection_changed(self, new_selection):
+        print("Group selection changed", len(new_selection.indexes()))
         selection = len(new_selection.indexes()) > 0
         self._ui_update_selection_dependent_buttons(selection)
 
@@ -234,7 +283,7 @@ class PointCloudPartitionerWidget(QtWidgets.QWidget):
 
     def move_group_data(self, source_row, target_row):
         group_target_row = len(self._groups) - 1 if target_row == -1 else target_row
-        model = self._ui.groupTableView.model()
+        model = self._group_points_ui.groupTableView.model()
         model.layoutAboutToBeChanged.emit()
         self._groups.insert(group_target_row, self._groups.pop(source_row))
         self._scene.update_graphics_materials(self._group_materials)
@@ -255,7 +304,7 @@ class PointCloudPartitionerWidget(QtWidgets.QWidget):
         return unique_name
 
     def _add_point_group(self, group=None):
-        model = self._ui.groupTableView.model()
+        model = self._group_points_ui.groupTableView.model()
 
         if group is None:
             name = self._next_available_name()
@@ -298,19 +347,19 @@ class PointCloudPartitionerWidget(QtWidgets.QWidget):
             self._scene.set_node_graphics_subgroup_field(tmp)
 
     def _selected_row(self):
-        selection_model = self._ui.groupTableView.selectionModel()
+        selection_model = self._group_points_ui.groupTableView.selectionModel()
         index = selection_model.currentIndex()
         return index.row()
 
     def _remove_associated_point_group(self):
-        model = self._ui.groupTableView.model()
+        model = self._group_points_ui.groupTableView.model()
         row = self._selected_row()
         model.begin_remove_group(row)
         self._remove_points_from_group(row)
         self._remove_point_group(row)
         self._update_node_graphics_subgroup()
         model.end_remove_group()
-        self._ui.groupTableView.selectionModel().clear()
+        self._group_points_ui.groupTableView.selectionModel().clear()
 
     def _remove_point_group(self, row):
         # Schedule the group for deletion.
@@ -401,16 +450,16 @@ class PointCloudPartitionerWidget(QtWidgets.QWidget):
         field_group.clear()
 
     def _update_selection_mode(self):
-        mode = MODE_MAP[self._ui.comboBoxSelectionMode.currentText()]
+        mode = MODE_MAP[self._selection_ui.comboBoxSelectionMode.currentText()]
         self._selection_handler.set_primary_selection_mode(mode)
 
     def _update_selection_type(self):
         scene_filter_module = self._model.get_context().getScenefiltermodule()
-        current_selection_type = self._ui.comboBoxSelectionType.currentText()
+        current_selection_type = self._selection_ui.comboBoxSelectionType.currentText()
         selection_type = TYPE_MAP[current_selection_type]
         scene_filter = scene_filter_module.createScenefilterFieldDomainType(selection_type)
         self._selection_handler.set_scene_filter(scene_filter)
-        self._ui.comboBoxDeleteSurfaceHistory.setEnabled(current_selection_type == "Surface Sections")
+        self._selection_ui.comboBoxDeleteSurfaceHistory.setEnabled(current_selection_type == "Surface Sections")
 
     def _connected_set_index(self, element_id):
         for index, connected_set in enumerate(self._connected_sets):
@@ -433,7 +482,7 @@ class PointCloudPartitionerWidget(QtWidgets.QWidget):
 
         if self._model.get_connected_set_index_field() is None:
             ignore_identifiers = self._list_ignore_element_identifiers()
-            tolerance_value = self._ui.doubleSpinBoxTolerance.value()
+            tolerance_value = self._selection_ui.doubleSpinBoxTolerance.value()
             self._model.determine_point_connected_surface(self._connected_sets, ignore_identifiers, tolerance_value, self._progress_dialog)
             # mesh_coordinate_field = self._model.get_mesh_coordinates()
             #
@@ -461,7 +510,7 @@ class PointCloudPartitionerWidget(QtWidgets.QWidget):
             #                 host_coordinates)
             #     data_projection_error_field = mesh_field_module.createFieldMagnitude(
             #                 data_projection_delta_coordinate_field)
-            #     tolerance_value = self._ui.doubleSpinBoxTolerance.value()
+            #     tolerance_value = self._selection_ui.doubleSpinBoxTolerance.value()
             #     tolerance_field = mesh_field_module.createFieldConstant(tolerance_value)
             #
             #     conditional_field = mesh_field_module.createFieldLessThan(data_projection_error_field, tolerance_field)
@@ -538,22 +587,23 @@ class PointCloudPartitionerWidget(QtWidgets.QWidget):
         self._surface_selection_updated()
 
     def _ui_update_selection_dependent_buttons(self, group_selection=None):
-        group_selection = self._ui.pushButtonDeleteGroup.isEnabled() if group_selection is None else group_selection
+        group_selection = self._group_points_ui.pushButtonDeleteGroup.isEnabled() if group_selection is None else group_selection
         node_selection_group = self._get_node_selection_group()
         nodes_selected = node_selection_group is not None and node_selection_group.getSize()
-        self._ui.pushButtonAddToGroup.setEnabled(nodes_selected and group_selection)
-        self._ui.pushButtonRemoveFromGroup.setEnabled(nodes_selected and group_selection)
-        self._ui.pushButtonDeleteGroup.setEnabled(group_selection)
+        self._group_points_ui.pushButtonAddToGroup.setEnabled(nodes_selected and group_selection)
+        self._group_points_ui.pushButtonRemoveFromGroup.setEnabled(nodes_selected and group_selection)
+        self._group_points_ui.pushButtonDeleteGroup.setEnabled(group_selection)
+        self._selection_ui.pushButtonInvertSelection.setEnabled(nodes_selected)
 
     def _surface_selection_updated(self):
         mesh_selection_group = self._get_mesh_selection_group()
         mesh_selected = mesh_selection_group is not None and mesh_selection_group.getSize()
-        whole_surfaces = self._ui.comboBoxSelectionType.currentText() == "Whole Surfaces"
-        surface_sections = self._ui.comboBoxSelectionType.currentText() == "Surface Sections"
-        self._ui.pushButtonSelectPointsOnSurface.setEnabled(mesh_selected and whole_surfaces)
-        self._ui.labelTolerance.setEnabled(mesh_selected and whole_surfaces)
-        self._ui.doubleSpinBoxTolerance.setEnabled(mesh_selected and whole_surfaces)
-        self._ui.pushButtonDeleteSelectedSurfaceSection.setEnabled(mesh_selected and surface_sections)
+        whole_surfaces = self._selection_ui.comboBoxSelectionType.currentText() == "Whole Surfaces"
+        surface_sections = self._selection_ui.comboBoxSelectionType.currentText() == "Surface Sections"
+        self._selection_ui.pushButtonSelectPointsOnSurface.setEnabled(mesh_selected and whole_surfaces)
+        self._selection_ui.labelTolerance.setEnabled(mesh_selected and whole_surfaces)
+        self._selection_ui.doubleSpinBoxTolerance.setEnabled(mesh_selected and whole_surfaces)
+        self._selection_ui.pushButtonDeleteSelectedSurfaceSection.setEnabled(mesh_selected and surface_sections)
 
         if mesh_selected and whole_surfaces:
             self._select_connected_mesh_elements(mesh_selection_group)
@@ -564,8 +614,8 @@ class PointCloudPartitionerWidget(QtWidgets.QWidget):
 
     def _list_ignore_element_identifiers(self):
         identifiers = []
-        for i in range(self._ui.comboBoxDeleteSurfaceHistory.currentIndex() + 1):
-            item = self._ui.comboBoxDeleteSurfaceHistory.itemData(i)
+        for i in range(self._selection_ui.comboBoxDeleteSurfaceHistory.currentIndex() + 1):
+            item = self._selection_ui.comboBoxDeleteSurfaceHistory.itemData(i)
             identifiers.extend(_element_ids(item))
 
         return sorted(identifiers)
@@ -594,8 +644,8 @@ class PointCloudPartitionerWidget(QtWidgets.QWidget):
             _select_elements(field_module, mesh_selection_group, selected_elements[0])
 
     def _delete_selected_surfaces(self):
-        for i in range(self._ui.comboBoxDeleteSurfaceHistory.count() - 1, self._ui.comboBoxDeleteSurfaceHistory.currentIndex(), -1):
-            self._ui.comboBoxDeleteSurfaceHistory.removeItem(i)
+        for i in range(self._selection_ui.comboBoxDeleteSurfaceHistory.count() - 1, self._selection_ui.comboBoxDeleteSurfaceHistory.currentIndex(), -1):
+            self._selection_ui.comboBoxDeleteSurfaceHistory.removeItem(i)
 
         scene = self._ui.widgetZinc.get_zinc_sceneviewer().getScene()
         selection_field = scene_get_or_create_selection_group(scene)
@@ -626,22 +676,21 @@ class PointCloudPartitionerWidget(QtWidgets.QWidget):
             delete_group = field_module.createFieldGroup()
             delete_mesh_group = delete_group.createMeshGroup(surface_mesh)
             delete_mesh_group.addElementsConditional(surface_mesh_group)
-            self._ui.comboBoxDeleteSurfaceHistory.blockSignals(True)
-            self._ui.comboBoxDeleteSurfaceHistory.addItem(f"Size: {delete_mesh_group.getSize()}", delete_mesh_group)
-            self._ui.comboBoxDeleteSurfaceHistory.setCurrentIndex(self._ui.comboBoxDeleteSurfaceHistory.count() - 1)
-            self._ui.comboBoxDeleteSurfaceHistory.blockSignals(False)
+            self._selection_ui.comboBoxDeleteSurfaceHistory.blockSignals(True)
+            self._selection_ui.comboBoxDeleteSurfaceHistory.addItem(f"Size: {delete_mesh_group.getSize()}", delete_mesh_group)
+            self._selection_ui.comboBoxDeleteSurfaceHistory.setCurrentIndex(self._selection_ui.comboBoxDeleteSurfaceHistory.count() - 1)
+            self._selection_ui.comboBoxDeleteSurfaceHistory.blockSignals(False)
 
     def _update_delete_field_function_2(self):
         surface_mesh = self._model.get_mesh()
         field_module = surface_mesh.getFieldmodule()
         with ChangeManager(field_module):
             all_delete_groups = field_module.createFieldGroup()
-            for i in range(self._ui.comboBoxDeleteSurfaceHistory.currentIndex() + 1):
-                item_data = self._ui.comboBoxDeleteSurfaceHistory.itemData(i)
+            for i in range(self._selection_ui.comboBoxDeleteSurfaceHistory.currentIndex() + 1):
+                item_data = self._selection_ui.comboBoxDeleteSurfaceHistory.itemData(i)
                 element_field_group = item_data.getFieldGroup()
                 all_delete_groups = field_module.createFieldOr(all_delete_groups, element_field_group)
 
-            # print(all_delete_groups.getMeshGroup(surface_mesh).getSize())
             not_field = field_module.createFieldNot(all_delete_groups)
 
             self._scene.set_surface_graphics_subgroup_field(not_field)
@@ -649,6 +698,22 @@ class PointCloudPartitionerWidget(QtWidgets.QWidget):
     def _delete_surface_history_index_changed(self, index):
         self._update_delete_field_function_2()
         self._model.reset_connected_set_index_field()
+
+    def _invert_selection_clicked(self):
+        points_region = self._model.get_points_region()
+        scene = points_region.getScene()
+        selection_field = scene.getSelectionField().castGroup()
+        field_module = points_region.getFieldmodule()
+        with ChangeManager(field_module):
+            with ChangeManager(scene):
+                new_selection_field = field_module.createFieldGroup()
+                not_field = field_module.createFieldNot(new_selection_field)
+                new_selection_group = new_selection_field.createNodesetGroup(self._model.get_data_points())
+                new_selection_group.addNodesConditional(selection_field)
+
+                selection_field.clear()
+                selection_field_group = selection_field.getOrCreateNodesetGroup(self._model.get_data_points())
+                selection_field_group.addNodesConditional(not_field)
 
     def _add_elements_to_group(self, element_group):
         # Add the selected Elements to a Group.
@@ -685,12 +750,16 @@ class PointCloudPartitionerWidget(QtWidgets.QWidget):
 
     def _zinc_widget_ready(self):
         self._ui.widgetZinc.set_selection_filter(self._model.get_selection_filter())
+        self._ui_update_selection_dependent_buttons()
 
     def _pixel_scale_changed(self, scale):
         self._scene.set_pixel_scale(scale)
 
     def _view_all_button_clicked(self):
         self._ui.widgetZinc.view_all()
+
+    def _standard_views_button_clicked(self):
+        rotate_to_next_standard_view(self._ui.widgetZinc.get_zinc_sceneviewer())
 
     def _continue_execution(self):
         self._save_settings()
@@ -713,9 +782,9 @@ class PointCloudPartitionerWidget(QtWidgets.QWidget):
                 settings = json.load(f)
 
             if "point_size" in settings:
-                self._ui.pointSizeSpinBox.setValue(settings["point_size"])
+                self._display_settings_ui.pointSizeSpinBox.setValue(settings["point_size"])
             if "tolerance" in settings:
-                self._ui.doubleSpinBoxTolerance.setValue(settings["tolerance"])
+                self._selection_ui.doubleSpinBoxTolerance.setValue(settings["tolerance"])
 
             return settings["input_hash"] if "input_hash" in settings else None
 
@@ -726,32 +795,33 @@ class PointCloudPartitionerWidget(QtWidgets.QWidget):
 
             mesh_group = self._create_element_group_from_identifiers([])
 
-            self._ui.comboBoxDeleteSurfaceHistory.blockSignals(True)
-            self._ui.comboBoxDeleteSurfaceHistory.addItem(f"--", mesh_group)
+            self._selection_ui.comboBoxDeleteSurfaceHistory.blockSignals(True)
+            self._selection_ui.comboBoxDeleteSurfaceHistory.clear()
+            self._selection_ui.comboBoxDeleteSurfaceHistory.addItem(f"--", mesh_group)
 
             if "deleted_surfaces" in settings:
                 deleted_surfaces = settings["deleted_surfaces"]
                 for deleted_surface in deleted_surfaces:
                     mesh_group = self._create_element_group_from_identifiers(deleted_surface)
-                    self._ui.comboBoxDeleteSurfaceHistory.addItem(f"Size: {mesh_group.getSize()}", mesh_group)
+                    self._selection_ui.comboBoxDeleteSurfaceHistory.addItem(f"Size: {mesh_group.getSize()}", mesh_group)
 
-            self._ui.comboBoxDeleteSurfaceHistory.setCurrentIndex(self._ui.comboBoxDeleteSurfaceHistory.count() - 1)
+            self._selection_ui.comboBoxDeleteSurfaceHistory.setCurrentIndex(self._selection_ui.comboBoxDeleteSurfaceHistory.count() - 1)
             self._update_delete_field_function_2()
-            self._ui.comboBoxDeleteSurfaceHistory.blockSignals(False)
+            self._selection_ui.comboBoxDeleteSurfaceHistory.blockSignals(False)
 
     def _save_settings(self):
         if not os.path.exists(self._location):
             os.makedirs(self._location)
 
         deleted_surfaces = []
-        for i in range(1, self._ui.comboBoxDeleteSurfaceHistory.currentIndex() + 1):
-            item = self._ui.comboBoxDeleteSurfaceHistory.itemData(i)
+        for i in range(1, self._selection_ui.comboBoxDeleteSurfaceHistory.currentIndex() + 1):
+            item = self._selection_ui.comboBoxDeleteSurfaceHistory.itemData(i)
             deleted_surfaces.append(_element_ids(item))
 
         settings = {
             "input_hash": self._input_hash,
-            "point_size": self._ui.pointSizeSpinBox.value(),
-            "tolerance": self._ui.doubleSpinBoxTolerance.value(),
+            "point_size": self._display_settings_ui.pointSizeSpinBox.value(),
+            "tolerance": self._selection_ui.doubleSpinBoxTolerance.value(),
             "deleted_surfaces": deleted_surfaces,
         }
 

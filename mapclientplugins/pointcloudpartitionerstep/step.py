@@ -47,6 +47,7 @@ class PointCloudPartitionerStep(WorkflowStepMountPoint):
         self._source_points = None
         self._segmentation_surface = None
         self._output_points = None
+        self._input_hash = None
 
     def execute(self):
         """
@@ -54,10 +55,15 @@ class PointCloudPartitionerStep(WorkflowStepMountPoint):
         Make sure you call the _doneExecution() method when finished.  This method
         may be connected up to a button in a widget for example.
         """
-        if self._view is None:
+        if self._source_points is None:
+            raise RuntimeError('Source points not set. Please set the source points before executing the step.')
+
+        input_hash = hash(self._source_points + '' if self._segmentation_surface is None else self._segmentation_surface)
+        if self._view is None or input_hash != self._input_hash:
             self._model = PointCloudPartitionerModel()
             self._view = PointCloudPartitionerWidget(self._model)
             self._view.register_done_execution(self._my_done_execution)
+            self._input_hash = input_hash
 
         self._view.set_location(os.path.join(self._location, self._config['identifier']))
         self._view.clear()

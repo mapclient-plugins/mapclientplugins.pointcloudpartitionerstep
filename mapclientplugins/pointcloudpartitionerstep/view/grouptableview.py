@@ -20,6 +20,12 @@ class GroupTableView(QtWidgets.QTableView):
         self.model().move_row(source_index, target_index)
         event.accept()
 
+    def mousePressEvent(self, event):
+        index = self.indexAt(event.pos())
+        if not index.isValid():
+            self.clearSelection()
+        super().mousePressEvent(event)
+
 
 class GroupModel(QtCore.QAbstractTableModel):
 
@@ -31,7 +37,7 @@ class GroupModel(QtCore.QAbstractTableModel):
         if not index.isValid():
             return QtCore.Qt.ItemFlag.ItemIsDropEnabled
 
-        index_flags = QtCore.Qt.ItemFlag.ItemIsDragEnabled | QtCore.Qt.ItemFlag.ItemIsDropEnabled |super().flags(index)
+        index_flags = QtCore.Qt.ItemFlag.ItemIsDragEnabled | QtCore.Qt.ItemFlag.ItemIsDropEnabled | super().flags(index)
         if index.column() == 0:
             index_flags |= QtCore.Qt.ItemFlag.ItemIsEditable
 
