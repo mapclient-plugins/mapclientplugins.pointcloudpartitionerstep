@@ -1,1 +1,4 @@
--e https://github.com/OpenCMISS-Bindings/opencmiss.utils/archive/master.zip
+PySide6
+cmlibs.utils >= 0.6.1
+cmlibs.widgets >= 0.5
+cmlibs.zinc >= 4.0
