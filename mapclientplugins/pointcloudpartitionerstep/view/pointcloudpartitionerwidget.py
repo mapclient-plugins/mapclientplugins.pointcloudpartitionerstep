@@ -225,14 +225,14 @@ class PointCloudPartitionerWidget(QtWidgets.QMainWindow):
         self._model.reset_connected_set_index_field()
 
     def load(self, points_file_location, surfaces_file_location):
-        self._field_module = self._model.get_points_region().getFieldmodule()
-        self._scene.setup_visualisation()
-
         previous_hash = self._load_settings()
         self._input_hash = _generate_hash(points_file_location)
         if self._input_hash == previous_hash:
             points_file_location = self.get_output_file()
         self._model.load(points_file_location, surfaces_file_location)
+        self._field_module = self._model.get_points_region().getFieldmodule()
+
+        self._scene.setup_visualisation()
 
         self._get_regions_fields(self._model.get_points_region(), self._points_field_list, True)
         self._get_regions_fields(self._model.get_surfaces_region(), self._surfaces_field_list, False)
@@ -273,7 +273,6 @@ class PointCloudPartitionerWidget(QtWidgets.QMainWindow):
         return os.path.join(self._location, "nodes-with-groups.exf")
 
     def _group_selection_changed(self, new_selection):
-        print("Group selection changed", len(new_selection.indexes()))
         selection = len(new_selection.indexes()) > 0
         self._ui_update_selection_dependent_buttons(selection)
 
@@ -292,6 +291,8 @@ class PointCloudPartitionerWidget(QtWidgets.QMainWindow):
     def group_data(self, row, column):
         if column == 0:
             return self._groups[row].getName()
+
+        return None
 
     def set_group_data(self, row, column, value):
         if column == 0:
@@ -751,8 +752,6 @@ class PointCloudPartitionerWidget(QtWidgets.QMainWindow):
                 node = node_iter.next()
             selection_group.clear()
 
-        # print(identifiers)
-
     def _get_node_selection_group(self):
         scene = self._ui.widgetZinc.get_zinc_sceneviewer().getScene()
         selection_field = scene_get_or_create_selection_group(scene)
@@ -810,6 +809,7 @@ class PointCloudPartitionerWidget(QtWidgets.QMainWindow):
                 self._selection_ui.doubleSpinBoxTolerance.setValue(settings["tolerance"])
 
             return settings["input_hash"] if "input_hash" in settings else None
+        return None
 
     def _load_deleted_surfaces(self):
         if os.path.isfile(self._settings_file()):

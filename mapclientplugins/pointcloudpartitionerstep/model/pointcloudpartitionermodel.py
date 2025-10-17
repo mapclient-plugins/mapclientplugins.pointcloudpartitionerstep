@@ -58,13 +58,18 @@ class PointCloudPartitionerModel(object):
             datapoints.destroyAllNodes()
 
         points_field_module = self._points_region.getFieldmodule()
-        self._point_selection_group = scene_create_selection_group(self._points_region.getScene())
-        node_datapoints = points_field_module.findNodesetByName("nodes")
+        points_region_nodes = points_field_module.findNodesetByName("nodes")
+
+        if points_region_nodes.getSize() > 0:
+            temp_points_region = self._root_region.createChild("temp_points")
+            convert_nodes_to_datapoints(temp_points_region, self._points_region)
+            self._root_region.removeChild(self._points_region)
+            self._points_region = temp_points_region
+            self._points_region.setName("points")
+
+        points_field_module = self._points_region.getFieldmodule()
         self._point_cloud_data_points = points_field_module.findNodesetByName("datapoints")
-
-        if node_datapoints.getSize() > 0:
-            convert_nodes_to_datapoints(self._points_region, self._points_region)
-
+        self._point_selection_group = scene_create_selection_group(self._points_region.getScene())
         self._mesh = surface_segmentation_field_module.findMeshByDimension(2)
 
     def get_context(self):
@@ -76,8 +81,6 @@ class PointCloudPartitionerModel(object):
     def update_point_cloud_coordinates(self, field_name):
         points_field_module = self._points_region.getFieldmodule()
         self._point_cloud_coordinates_field = points_field_module.findFieldByName(field_name)
-        # self._point_cloud_nodes.removeAllNodes()
-        # self._point_cloud_nodes.addNodesConditional(self._point_cloud_coordinates_field)
 
     def get_mesh_coordinates(self):
         return self._mesh_coordinates_field
